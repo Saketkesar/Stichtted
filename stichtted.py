@@ -1,4 +1,4 @@
-# STICHTTED v2.0 - Enhanced PCAP Flag & Artifact Extractor Tool
+# STICHTTED v3.0 - Enhanced PCAP Flag & Artifact Extractor Tool with PyShark
 
 import argparse
 import os
@@ -7,9 +7,11 @@ import base64
 import time
 import gzip
 import io
+from collections import defaultdict
 from scapy.all import rdpcap, TCP, Raw
 from scapy.layers.dns import DNS
 from scapy.layers.http import HTTPRequest, HTTPResponse
+import pyshark
 
 # Color & Icons
 RESET = "\033[0m"
@@ -24,19 +26,21 @@ ICON_FOUND = "\u2705"
 ICON_NOT_FOUND = "\u274C"
 
 # Banner
+
 def print_banner():
     banner = f"""{CYAN}
-┌──────────────────────────────────────────────┐
-│               STICHTTED v2.0                 │
-│     PCAP Flag & Artifact Extractor Tool      │
-│             Made by: S4k3t                   │
-└──────────────────────────────────────────────┘
-  For \U0001F525 CTF hunters, cyber pros, and analysts.
+┌──────────────────────────────────────────────────────────────┐
+│                      STICHTTED v3.0                          │
+│       PCAP and PCAPNG Flag & Artifact Extractor Tool         │
+│                  Made with ♥ by S4k3t                        │
+└──────────────────────────────────────────────────────────────┘
+🔗 GitHub: https://github.com/Saketkesar/Stichtted ⭐ Give a Star!
 {RESET}"""
     print(banner)
     time.sleep(1)
 
 # Spinner loading
+
 def loading(task="Processing", seconds=2):
     spinner = ['|', '/', '-', '\\']
     print(task, end='', flush=True)
@@ -47,6 +51,7 @@ def loading(task="Processing", seconds=2):
     print('\b ', end='')
 
 # Recursive decoder
+
 def recursive_decode(data, depth=2):
     outputs = [data]
     for _ in range(depth):
@@ -63,17 +68,19 @@ def recursive_decode(data, depth=2):
         outputs.extend(new_outputs)
     return list(set(outputs))
 
-# Pattern matcher with context
-def search_pattern(data, pattern):
+# Pattern matcher with context and source
+
+def search_pattern(data, pattern, source_label):
     results = []
     for variant in recursive_decode(data):
         for match in re.finditer(pattern, variant):
             context = variant[match.start():match.end()+60]
-            results.append((match.group(), "Recursive", context))
+            results.append((match.group(), "Recursive", context, source_label))
     return results
 
 # Artifact extractor
-def extract_artifacts(data):
+
+def extract_artifacts(data, source_label):
     results = []
     patterns = {
         "URL": r"https?://[^\s\"'<>]+",
@@ -84,7 +91,7 @@ def extract_artifacts(data):
     for label, regex in patterns.items():
         for match in re.finditer(regex, data):
             context = data[match.start():match.end()+60]
-            results.append((match.group(), label, context))
+            results.append((match.group(), label, context, source_label))
     return results
 
 # Try decompressing gzip
@@ -96,7 +103,8 @@ def try_decompress(data):
     except:
         return None
 
-# TCP Stream reconstruction (naive)
+# TCP Stream reconstruction
+
 def reassemble_tcp_payloads(packets):
     sessions = packets.sessions()
     data_streams = []
@@ -106,76 +114,92 @@ def reassemble_tcp_payloads(packets):
             if pkt.haslayer(Raw):
                 payload += pkt[Raw].load.decode('utf-8', errors='ignore')
         if payload:
-            data_streams.append(payload)
+            data_streams.append((session, payload))
     return data_streams
 
-# PCAP analyzer
-def analyze(file_path, regex):
+# Analyze using PyShark
+
+def analyze_with_pyshark(file_path, regex):
+    results = []
+    try:
+        cap = pyshark.FileCapture(file_path, decode_as={"tcp.port==80":"http"}, use_json=True, include_raw=True)
+        for pkt in cap:
+            try:
+                if hasattr(pkt, 'http'):
+                    fields = [getattr(pkt.http, attr) for attr in dir(pkt.http) if not attr.startswith('_')]
+                    for field in fields:
+                        if isinstance(field, str):
+                            matches = search_pattern(field, regex, f"HTTP field in Packet #{pkt.number}")
+                            matches += extract_artifacts(field, f"HTTP field in Packet #{pkt.number}")
+                            for match, typ, context, src in matches:
+                                results.append({
+                                    "match": match,
+                                    "type": f"HTTP:{typ}",
+                                    "context": context,
+                                    "source": src,
+                                    "packet_index": pkt.number,
+                                    "summary": f"{pkt.highest_layer} Packet",
+                                    "packet": field[:300]
+                                })
+                if hasattr(pkt, 'dns') and hasattr(pkt.dns, 'qry_name'):
+                    dns_data = pkt.dns.qry_name
+                    matches = search_pattern(dns_data, regex, f"DNS Query #{pkt.number}")
+                    for match, typ, context, src in matches:
+                        results.append({
+                            "match": match,
+                            "type": f"DNS:{typ}",
+                            "context": context,
+                            "source": src,
+                            "packet_index": pkt.number,
+                            "summary": f"DNS Query",
+                            "packet": dns_data
+                        })
+            except Exception:
+                continue
+        cap.close()
+    except Exception as e:
+        print(f"{RED}PyShark Error: {e}{RESET}")
+    return results
+
+# Scapy analyzer
+
+def analyze_with_scapy(file_path, regex):
     results = []
     try:
         packets = rdpcap(file_path)
         data_streams = reassemble_tcp_payloads(packets)
 
-        for stream in data_streams:
-            stream_results = search_pattern(stream, regex) + extract_artifacts(stream)
-            for match, typ, context in stream_results:
+        for session, stream in data_streams:
+            stream_results = search_pattern(stream, regex, f"TCP Session: {session}")
+            stream_results += extract_artifacts(stream, f"TCP Session: {session}")
+            for match, typ, context, src in stream_results:
                 results.append({
                     "match": match,
                     "type": typ,
                     "context": context,
+                    "source": src,
                     "packet_index": "TCP_Stream",
                     "summary": "Reassembled TCP Stream",
-                    "packet": stream[:400]  # show trimmed dump
+                    "packet": stream[:400]
                 })
-
-        for i, pkt in enumerate(packets):
-            layers = []
-            if pkt.haslayer(Raw):
-                data = pkt[Raw].load
-                try:
-                    data = data.decode('utf-8', errors='ignore')
-                except: continue
-
-                if try_decompress(pkt[Raw].load):
-                    data = try_decompress(pkt[Raw].load)
-
-                matches = search_pattern(data, regex) + extract_artifacts(data)
-                for match, typ, context in matches:
-                    results.append({
-                        "match": match,
-                        "type": typ,
-                        "context": context,
-                        "packet_index": i,
-                        "summary": pkt.summary(),
-                        "packet": str(pkt)
-                    })
-
-            elif pkt.haslayer(DNS):
-                if pkt[DNS].qd:
-                    qname = pkt[DNS].qd.qname.decode()
-                    if re.search(regex, qname):
-                        results.append({
-                            "match": qname,
-                            "type": "DNS Query",
-                            "context": qname,
-                            "packet_index": i,
-                            "summary": pkt.summary(),
-                            "packet": str(pkt)
-                        })
-
     except Exception as e:
-        print(f"{RED}Error: {e}{RESET}")
+        print(f"{RED}Scapy Error: {e}{RESET}")
     return results
 
-# Show results
+# Result printer
+
 def show(results):
     if results:
+        match_counter = defaultdict(int)
         for r in results:
+            match_counter[r['match']] += 1
             print(f"\n  {GREEN}{ICON_FOUND} Found: {r['match']}{RESET}")
             print(f"    ↪ Type     : {MAGENTA}{r['type']}{RESET}")
+            print(f"    ↪ Source   : {CYAN}{r['source']}{RESET}")
             print(f"    ↪ Context  : {YELLOW}{r['context']}{RESET}")
             print(f"    ↪ Packet #{r['packet_index']}: {r['summary']}")
             print(f"    ↪ Dump     :\n{CYAN}{r['packet']}{RESET}\n")
+        print(f"\n{GREEN}✅ Total Matches Found: {len(results)}{RESET}")
     else:
         print(f"{RED}{ICON_NOT_FOUND} No matches found.{RESET}")
 
@@ -183,9 +207,9 @@ def show(results):
 
 def main():
     print_banner()
-    parser = argparse.ArgumentParser(description="CTF-grade PCAP search tool by S4k3t")
+    parser = argparse.ArgumentParser(description="STICHTTED: Flag & Artifact Extractor by S4k3t")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-f', '--file', help='PCAP file to scan')
+    group.add_argument('-f', '--file', help='PCAP/PCAPNG file to scan')
     group.add_argument('-d', '--directory', help='Directory of PCAPs')
     parser.add_argument('-l', '--lookup', required=True, help='Regex pattern to look for')
     args = parser.parse_args()
@@ -196,7 +220,8 @@ def main():
             return
         print(f"{ICON_FILE} Analyzing: {CYAN}{args.file}{RESET}")
         loading("   Parsing ")
-        results = analyze(args.file, args.lookup)
+        results = analyze_with_scapy(args.file, args.lookup)
+        results += analyze_with_pyshark(args.file, args.lookup)
         show(results)
 
     elif args.directory:
@@ -205,11 +230,12 @@ def main():
             return
         print(f"{ICON_FOLDER} Scanning: {YELLOW}{args.directory}{RESET}")
         for f in os.listdir(args.directory):
-            if f.endswith(".pcap"):
+            if f.endswith(".pcap") or f.endswith(".pcapng"):
                 path = os.path.join(args.directory, f)
                 print(f"\n{ICON_FILE} File: {CYAN}{f}{RESET}")
                 loading("   Parsing ")
-                results = analyze(path, args.lookup)
+                results = analyze_with_scapy(path, args.lookup)
+                results += analyze_with_pyshark(path, args.lookup)
                 show(results)
 
 if __name__ == "__main__":
