@@ -3,7 +3,7 @@
 
 **stichtted** is a high-performance PCAP artifact extraction tool crafted for CTF players, red teamers, bug bounty hunters, and cyber professionals. It detects and extracts **flags**, **JWTs**, **URLs**, **IPs**, **emails**, and **encoded payloads** (Base64, hex) from `.pcap` **and now also `.pcapng`** files — thanks to PyShark integration and stream reassembly logic.
 
-![stichtted demo](https://iili.io/FIX0p2I.png)
+![stichtted demo](https://iili.io/FIXrCWx.png)
 
 ---
 
