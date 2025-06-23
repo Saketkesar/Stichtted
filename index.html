@@ -9,37 +9,44 @@
   <meta name="author" content="S4k3t">
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code&family=Orbitron:wght@500&display=swap" rel="stylesheet">
   <script src="https://kit.fontawesome.com/a2e0e6cfd3.js" crossorigin="anonymous"></script>
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  <script>
+    async function fetchStars() {
+      const res = await fetch('https://api.github.com/repos/Saketkesar/Stichtted');
+      const data = await res.json();
+      const starCount = data.stargazers_count || 0;
+      document.getElementById('star-count').innerText = `⭐ ${starCount} GitHub Stars`;
+    }
+    window.onload = fetchStars;
+  </script>
   <style>
     body {
       margin: 0;
       font-family: 'Fira Code', monospace;
-      background: #0b0c1a;
-      background-image: radial-gradient(#1b1b2f 1px, transparent 1px), radial-gradient(#1b1b2f 1px, transparent 1px);
-      background-size: 20px 20px;
-      background-position: 0 0, 10px 10px;
-      color: #f1f1f1;
+      background: linear-gradient(135deg, #000014 0%, #040018 100%);
+      color: #eaeaea;
       overflow-x: hidden;
     }
     header {
       text-align: center;
       padding: 4rem 1rem;
-      background: linear-gradient(145deg, #12122a, #0c0c1f);
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+      background: linear-gradient(145deg, #0b0b2b, #050515);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.08);
     }
     header img {
-      max-width: 300px;
+      max-width: 320px;
       border-radius: 12px;
-      box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
     }
     header h1 {
       font-family: 'Orbitron', sans-serif;
-      color: #38f9d7;
+      color: #4ef3ee;
       font-size: 3rem;
       margin: 1rem 0 0.5rem;
     }
     header p {
-      font-size: 1.2rem;
-      color: #ccc;
+      font-size: 1.1rem;
+      color: #bbbbbb;
     }
     .container {
       max-width: 1100px;
@@ -47,8 +54,8 @@
       padding: 2rem;
     }
     h2 {
-      color: #8be9fd;
-      border-bottom: 1px solid #444;
+      color: #70f0ff;
+      border-bottom: 1px solid #333;
       padding-bottom: 0.3rem;
       margin-top: 3rem;
     }
@@ -59,62 +66,74 @@
       margin-bottom: 0.5rem;
     }
     code {
-      background: #181818;
+      background: #202020;
       padding: 2px 6px;
       border-radius: 4px;
       color: #f1fa8c;
     }
     pre {
-      background: #111;
+      background: #101010;
       padding: 1rem;
       border-radius: 8px;
-      box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.2);
+      box-shadow: inset 0 0 15px rgba(0, 255, 255, 0.15);
       overflow-x: auto;
     }
     .icons a {
-      color: #50fa7b;
+      color: #4dff91;
       font-size: 1.6rem;
       margin: 0 1rem;
       transition: color 0.3s;
     }
     .icons a:hover {
-      color: #8be9fd;
+      color: #79d3ff;
+    }
+    .github-stars {
+      margin-top: 1rem;
+      color: #9afff0;
+      font-weight: bold;
+      font-size: 1rem;
     }
     footer {
       text-align: center;
       padding: 2rem 1rem;
       font-size: 0.9rem;
-      color: #aaa;
+      color: #777;
     }
-    a { color: #50fa7b; text-decoration: none; }
   </style>
 </head>
 <body>
   <header>
     <img src="https://camo.githubusercontent.com/a412b61db689ce3158a5e370cfc37fd074f414eef47a3fee566a09e10688022a/68747470733a2f2f69696c692e696f2f464958724357782e706e67" alt="Stichtted Banner">
-    <h1></h1>
-    <p> ⚡ V3.0</p>
+    
+    <p>⚡ V3.0</p>
     <div class="icons">
-      <a href="https://github.com/Saketkesar/Stichtted" target="_blank"><i class="fab fa-github"></i></a>
+      <a href="https://github.com/Saketkesar/Stichtted" target="_blank" title="GitHub Repository"><i class="fab fa-github"></i></a>
+      <a class="github-button" href="https://github.com/Saketkesar/Stichtted" data-size="large" data-show-count="true" aria-label="Star Stichtted on GitHub">Star</a>
       <a href="#usage"><i class="fas fa-terminal"></i></a>
       <a href="#features"><i class="fas fa-cogs"></i></a>
     </div>
+    <div class="github-stars" id="star-count">⭐ Loading GitHub Stars...</div>
   </header>
 
-  <div class="container">
-    <h2 id="features">✨ Features</h2>
-    <ul>
-      <li>Supports <code>.pcap</code> & <code>.pcapng</code> formats</li>
-      <li>Regex-based pattern matching</li>
-      <li>Auto-detection: URLs, JWTs, IPs, Emails</li>
-      <li>HTTP headers, DNS queries, TCP stream reassembly</li>
-      <li>Base64/Hex recursive decoding</li>
-      <li>Source-aware artifact tagging (where it was found)</li>
-      <li>Total hits summary with exact locations</li>
-    </ul>
+<div class="container">
+  <h2 id="features">✨ Features</h2>
+  <ul>
+    <li>Supports <code>.pcap</code> & <code>.pcapng</code> formats</li>
+    <li>Regex-based pattern matching</li>
+    <li>Auto-detection: URLs, JWTs, IPs, Emails</li>
+    <li>HTTP headers, DNS queries, TCP stream reassembly</li>
+    <li>Base64/Hex recursive decoding</li>
+    <li>Source-aware artifact tagging (where it was found)</li>
+    <li>Total hits summary with exact locations</li>
+  </ul>
 
-    <h2 id="usage">🧠 Command Usage</h2>
-    <pre><code># Scan single file for HTB flags
+  <h2 id="installation">📦 Installation</h2>
+  <pre><code>git clone https://github.com/Saketkesar/Stichtted.git
+cd Stichtted
+pip install -r requirements.txt</code></pre>
+
+  <h2 id="usage">🧠 Command Usage</h2>
+  <pre><code># Scan single file for HTB flags
 python3 stichtted.py -f challenge.pcap -l "HTB{.*?}"
 
 # Scan directory
@@ -124,30 +143,26 @@ python3 stichtted.py -d ./captures -l "SKT{.*?}"
 python3 stichtted.py -f netlog.pcapng -l "https://[a-zA-Z0-9./?=_-]+"
 
 # Match JWT tokens
-python3 stichtted.py -f encoded.pcap -l "eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
+python3 stichtted.py -f encoded.pcap -l "eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"
 </code></pre>
 
-    <h2>🧪 Output</h2>
-    <pre><code>✅ Found: 3 matches
+  <h2>🧪 Output Example</h2>
+  <pre><code>✅ Found: 3 matches
  ↪ 1: SKT{flag_1}  [Packet #7, DNS layer, Base64 decoded]
  ↪ 2: SKT{flag_2}  [Packet #21, HTTP payload]
  ↪ 3: SKT{flag_3}  [Packet #37, TCP stream]
 </code></pre>
 
-    <h2>⚙ Requirements</h2>
-    <ul>
-      <li>Python 3.8+</li>
-      <li>Scapy</li>
-      <li>PyShark (requires <code>tshark</code> installed)</li>
-    </ul>
-    <pre><code>pip install -r requirements.txt</code></pre>
+  <h2>⚙ Requirements</h2>
+  <ul>
+    <li>Python 3.8+</li>
+    <li>Scapy</li>
+    <li>PyShark (requires <code>tshark</code> installed)</li>
+  </ul>
 
-    <h2>🌌 About</h2>
-    <p><strong>STICHTTED</strong> is a  PCAP analyzer designed by <code>S4k3t</code> for raw packet lovers, CTF champions, and red teamers. Galaxy-themed, optimized for deep traffic dives and decoding chaos.</p>
-  </div>
+  <h2>🌌 About</h2>
+  <p><strong>STICHTTED</strong> is a PCAP analyzer designed by <code>S4k3t</code> for raw packet lovers, CTF champions, and red teamers. Galaxy-themed, optimized for deep traffic dives and decoding chaos.</p>
+</div>
 
-  <footer>
-    <p>🚀 Powered by <strong><a href="https://github.com/Saketkesar" target="_blank">S4k3t</a></strong> </p>
-  </footer>
 </body>
 </html>
