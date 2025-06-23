@@ -1,9 +1,15 @@
+# STICHTTED v2.0 - Enhanced PCAP Flag & Artifact Extractor Tool
+
 import argparse
 import os
 import re
 import base64
 import time
-from scapy.all import rdpcap
+import gzip
+import io
+from scapy.all import rdpcap, TCP, Raw
+from scapy.layers.dns import DNS
+from scapy.layers.http import HTTPRequest, HTTPResponse
 
 # Color & Icons
 RESET = "\033[0m"
@@ -12,43 +18,27 @@ GREEN = "\033[92m"
 RED = "\033[91m"
 YELLOW = "\033[93m"
 MAGENTA = "\033[95m"
-ICON_FILE = "📄"
-ICON_FOLDER = "📁"
-ICON_FOUND = "✅"
-ICON_NOT_FOUND = "❌"
+ICON_FILE = "\U0001F4C4"
+ICON_FOLDER = "\U0001F4C1"
+ICON_FOUND = "\u2705"
+ICON_NOT_FOUND = "\u274C"
 
 # Banner
 def print_banner():
     banner = f"""{CYAN}
 ┌──────────────────────────────────────────────┐
-│               STICHTTED v1.0                 │
+│               STICHTTED v2.0                 │
 │     PCAP Flag & Artifact Extractor Tool      │
 │             Made by: S4k3t                   │
 └──────────────────────────────────────────────┘
-  For 🔥 CTF hunters, cyber pros, and analysts.
-
-  🔍 Can Analyze:
-    ✅ CTF flags     (HTB{{}}, SKT{{}}, CTF{{}}...)
-    ✅ Encoded data  (Base64, Hex-encoded)
-    ✅ URLs          (http://, https://...)
-    ✅ JWT Tokens    (eyJ...eyJ...eyJ)
-    ✅ IP Addresses  (192.168.x.x, etc.)
-    ✅ Raw packet context (full packet dump)
-
-  ⚙ Usage:
-    python3 stichtted_ctf.py -f file.pcap -l "HTB{{.*?}}"
-    python3 stichtted_ctf.py -f file.pcap -l "SKT{{.*?}}"
-    python3 stichtted_ctf.py -d ./pcaps -l "CTF{{.*?}}"
-    python3 stichtted_ctf.py -f file.pcap -l "https://[a-zA-Z0-9./?=_-]+"
-
-  💡 Tip: Use -l "<regex>" to extract custom flags, secrets, or indicators.
+  For \U0001F525 CTF hunters, cyber pros, and analysts.
 {RESET}"""
     print(banner)
     time.sleep(1)
 
 # Spinner loading
-spinner = ['|', '/', '-', '\\']
 def loading(task="Processing", seconds=2):
+    spinner = ['|', '/', '-', '\\']
     print(task, end='', flush=True)
     for _ in range(seconds * 4):
         for c in spinner:
@@ -56,27 +46,33 @@ def loading(task="Processing", seconds=2):
             time.sleep(0.1)
     print('\b ', end='')
 
+# Recursive decoder
+def recursive_decode(data, depth=2):
+    outputs = [data]
+    for _ in range(depth):
+        new_outputs = []
+        for d in outputs:
+            try:
+                b64 = base64.b64decode(d).decode('utf-8', errors='ignore')
+                new_outputs.append(b64)
+            except: pass
+            try:
+                hx = bytes.fromhex(d).decode('utf-8', errors='ignore')
+                new_outputs.append(hx)
+            except: pass
+        outputs.extend(new_outputs)
+    return list(set(outputs))
+
 # Pattern matcher with context
 def search_pattern(data, pattern):
     results = []
-    for match in re.finditer(pattern, data):
-        context = data[match.start():match.end()+60]
-        results.append((match.group(), "Plain", context))
-    try:
-        decoded = base64.b64decode(data).decode('utf-8', errors='ignore')
-        for match in re.finditer(pattern, decoded):
-            context = decoded[match.start():match.end()+60]
-            results.append((match.group(), "Base64", context))
-    except: pass
-    try:
-        decoded = bytes.fromhex(data).decode('utf-8', errors='ignore')
-        for match in re.finditer(pattern, decoded):
-            context = decoded[match.start():match.end()+60]
-            results.append((match.group(), "Hex", context))
-    except: pass
+    for variant in recursive_decode(data):
+        for match in re.finditer(pattern, variant):
+            context = variant[match.start():match.end()+60]
+            results.append((match.group(), "Recursive", context))
     return results
 
-# Auto pattern extraction
+# Artifact extractor
 def extract_artifacts(data):
     results = []
     patterns = {
@@ -91,22 +87,60 @@ def extract_artifacts(data):
             results.append((match.group(), label, context))
     return results
 
+# Try decompressing gzip
+
+def try_decompress(data):
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(data)) as f:
+            return f.read().decode('utf-8', errors='ignore')
+    except:
+        return None
+
+# TCP Stream reconstruction (naive)
+def reassemble_tcp_payloads(packets):
+    sessions = packets.sessions()
+    data_streams = []
+    for session in sessions:
+        payload = ""
+        for pkt in sessions[session]:
+            if pkt.haslayer(Raw):
+                payload += pkt[Raw].load.decode('utf-8', errors='ignore')
+        if payload:
+            data_streams.append(payload)
+    return data_streams
+
 # PCAP analyzer
 def analyze(file_path, regex):
     results = []
     try:
         packets = rdpcap(file_path)
+        data_streams = reassemble_tcp_payloads(packets)
+
+        for stream in data_streams:
+            stream_results = search_pattern(stream, regex) + extract_artifacts(stream)
+            for match, typ, context in stream_results:
+                results.append({
+                    "match": match,
+                    "type": typ,
+                    "context": context,
+                    "packet_index": "TCP_Stream",
+                    "summary": "Reassembled TCP Stream",
+                    "packet": stream[:400]  # show trimmed dump
+                })
+
         for i, pkt in enumerate(packets):
-            if pkt.haslayer('Raw'):
-                payload = bytes(pkt['Raw'].load)
-                data = payload.decode('utf-8', errors='ignore')
+            layers = []
+            if pkt.haslayer(Raw):
+                data = pkt[Raw].load
+                try:
+                    data = data.decode('utf-8', errors='ignore')
+                except: continue
 
-                # Manual search
-                matches = search_pattern(data, regex)
-                # Auto artifact extraction
-                artifacts = extract_artifacts(data)
+                if try_decompress(pkt[Raw].load):
+                    data = try_decompress(pkt[Raw].load)
 
-                for match, typ, context in matches + artifacts:
+                matches = search_pattern(data, regex) + extract_artifacts(data)
+                for match, typ, context in matches:
                     results.append({
                         "match": match,
                         "type": typ,
@@ -115,11 +149,25 @@ def analyze(file_path, regex):
                         "summary": pkt.summary(),
                         "packet": str(pkt)
                     })
+
+            elif pkt.haslayer(DNS):
+                if pkt[DNS].qd:
+                    qname = pkt[DNS].qd.qname.decode()
+                    if re.search(regex, qname):
+                        results.append({
+                            "match": qname,
+                            "type": "DNS Query",
+                            "context": qname,
+                            "packet_index": i,
+                            "summary": pkt.summary(),
+                            "packet": str(pkt)
+                        })
+
     except Exception as e:
         print(f"{RED}Error: {e}{RESET}")
     return results
 
-# Result printer
+# Show results
 def show(results):
     if results:
         for r in results:
@@ -131,7 +179,8 @@ def show(results):
     else:
         print(f"{RED}{ICON_NOT_FOUND} No matches found.{RESET}")
 
-# Main driver
+# Main
+
 def main():
     print_banner()
     parser = argparse.ArgumentParser(description="CTF-grade PCAP search tool by S4k3t")

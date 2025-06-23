@@ -44,7 +44,7 @@ scapy
 
 ```bash
 git clone https://github.com/Saketkesar/Stichtted-.git
-cd stichtted
+cd Stichtted-
 pip install -r requirements.txt
 ```
 
