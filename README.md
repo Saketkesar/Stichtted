@@ -1,4 +1,4 @@
-# stichtted
+# stichtted v2.0
 
 **stichtted** is a fast, hacker-grade PCAP analyzer designed for CTF players, bug bounty hunters, and cybersecurity professionals. Extract CTF flags, secrets, JWTs, URLs, IPs, and encoded data from packet captures with smart context and full raw packet dumps.
 
@@ -43,8 +43,9 @@ scapy
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/Saketkesar/Stichtted-.git
-cd Stichtted-
+git clone https://github.com/Saketkesar/Stichtted.git
+cd Stichtted
+
 pip install -r requirements.txt
 ```
 
