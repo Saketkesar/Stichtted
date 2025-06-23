@@ -2,7 +2,7 @@
 
 **stichtted** is a fast, hacker-grade PCAP analyzer designed for CTF players, bug bounty hunters, and cybersecurity professionals. Extract CTF flags, secrets, JWTs, URLs, IPs, and encoded data from packet captures with smart context and full raw packet dumps.
 
-![stichtted demo](https://iili.io/FIFKR4I.png)
+![stichtted demo](https://iili.io/FIa0jxn.md.png)
 
 ---
 
