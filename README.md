@@ -54,16 +54,16 @@ pip install -r requirements.txt
 
 ```bash
 # Analyze single PCAP for CTF flags
-python3 stichtted_ctf.py -f dump.pcap -l "HTB{.*?}"
+python3 stichtted.py -f dump.pcap -l "HTB{.*?}"
 
 # Search for a specific flag pattern
-python3 stichtted_ctf.py -f flag_encoded.pcap -l "SKT{.*?}"
+python3 stichtted.py -f flag_encoded.pcap -l "SKT{.*?}"
 
 # Extract secrets from all PCAPs in a directory
-python3 stichtted_ctf.py -d ./pcaps -l "CTF{.*?}"
+python3 stichtted.py -d ./pcaps -l "CTF{.*?}"
 
 # Search for URLs
-python3 stichtted_ctf.py -f netlog.pcap -l "https://[a-zA-Z0-9./?=_-]+"
+python3 stichtted.py -f netlog.pcap -l "https://[a-zA-Z0-9./?=_-]+"
 ```
 
 ---
